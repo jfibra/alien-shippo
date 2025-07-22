@@ -3,6 +3,22 @@
 import { supabase } from "@/lib/supabase-browser"
 import type { User } from "@supabase/supabase-js"
 
+/* -------------------------------------------------------------------------- */
+/*                              Helper utilities                              */
+/* -------------------------------------------------------------------------- */
+
+function origin() {
+  // Guards against SSR ‒ window is only defined in the browser
+  return typeof window !== "undefined" ? window.location.origin : (process.env.NEXT_PUBLIC_SITE_URL ?? "")
+}
+
+function userFullName(first: string, middle: string | null, last: string) {
+  return `${first} ${middle ? middle + " " : ""}${last}`
+}
+
+/* -------------------------------------------------------------------------- */
+/*                                 Sign-up                                    */
+/* -------------------------------------------------------------------------- */
 export async function signUp(
   email: string,
   password: string,
@@ -19,143 +35,177 @@ export async function signUp(
           first_name: firstName,
           middle_name: middleName,
           last_name: lastName,
-          full_name: `${firstName} ${middleName ? middleName + " " : ""}${lastName}`,
+          full_name: userFullName(firstName, middleName, lastName),
         },
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        emailRedirectTo: `${origin()}/auth/magic/callback`,
       },
     })
 
     if (error) {
-      if (error.message.includes("User already registered")) {
-        return {
-          success: false,
-          error: "This email is already registered. Please log in instead.",
-          code: "email_already_exists",
-        }
-      }
-      throw error
+      const msg = error.message.includes("User already registered")
+        ? "This email is already registered. Please log in instead."
+        : error.message
+      return { success: false, error: msg }
     }
 
-    // Create user profile in public.users table
+    // Create a row in public.users – password column left empty because Supabase Auth stores it
     if (data.user) {
-      const { error: profileError } = await supabase.from("users").insert([
-        {
-          id: data.user.id,
-          email: data.user.email!,
-          password: "", // Password is handled by Supabase Auth
-          first_name: firstName,
-          middle_name: middleName,
-          last_name: lastName,
-          role: "user",
-          email_verified: false,
-          is_active: true,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-      ])
-
-      if (profileError) {
-        console.error("Profile creation error:", profileError)
-      }
+      await supabase.from("users").insert({
+        id: data.user.id,
+        email: data.user.email!,
+        password: "",
+        first_name: firstName,
+        middle_name: middleName,
+        last_name: lastName,
+        role: "user",
+        email_verified: false,
+        is_active: true,
+      })
     }
 
-    return { success: true, data, error: null }
-  } catch (error: any) {
-    return { success: false, data: null, error: error.message }
+    return { success: true, data }
+  } catch (err: any) {
+    return { success: false, error: err?.message ?? "Unexpected error" }
   }
 }
 
+/* -------------------------------------------------------------------------- */
+/*                                   Login                                    */
+/* -------------------------------------------------------------------------- */
 export async function signIn(email: string, password: string) {
   try {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
 
-    if (error) {
-      throw error
-    }
+    if (error) throw error
 
-    // Update last_login in users table
+    // Update last_login timestamp
     if (data.user) {
       await supabase
         .from("users")
-        .update({
-          last_login: new Date().toISOString(),
-          last_active: new Date().toISOString(),
-        })
+        .update({ last_login: new Date().toISOString(), last_active: new Date().toISOString() })
         .eq("id", data.user.id)
     }
 
-    return { success: true, data, error: null }
-  } catch (error: any) {
-    return { success: false, data: null, error: error.message }
+    return { success: true, data }
+  } catch (err: any) {
+    return { success: false, error: err?.message ?? "Invalid credentials" }
   }
 }
 
+/* -------------------------------------------------------------------------- */
+/*                               Magic Link / OTP                             */
+/* -------------------------------------------------------------------------- */
 export async function sendMagicLink(email: string) {
   try {
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/magic`,
         shouldCreateUser: true,
+        emailRedirectTo: `${origin()}/auth/magic/callback`,
       },
     })
-
-    if (error) {
-      throw error
-    }
-
-    return { success: true, error: null }
+    if (error) throw error
+    return { success: true }
   } catch (err: any) {
-    return { success: false, error: err.message ?? "An unexpected error occurred" }
+    return { success: false, error: err?.message ?? "Unable to send magic link" }
   }
 }
 
-export async function signOut() {
-  try {
-    const { error } = await supabase.auth.signOut()
-
-    if (error) {
-      throw error
-    }
-
-    return { error: null }
-  } catch (error: any) {
-    return { error: error.message }
-  }
-}
-
+/* -------------------------------------------------------------------------- */
+/*                             Forgot / Reset Password                        */
+/* -------------------------------------------------------------------------- */
 export async function resetPassword(email: string) {
   try {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth/reset-password`,
+      redirectTo: `${origin()}/auth/reset-password/callback`,
     })
-
-    if (error) {
-      throw error
-    }
-
-    return { success: true, error: null }
-  } catch (error: any) {
-    return { success: false, error: error.message }
+    if (error) throw error
+    return { success: true }
+  } catch (err: any) {
+    return { success: false, error: err?.message ?? "Unable to send reset email" }
   }
 }
 
 export async function updatePassword(password: string) {
   try {
-    const { error } = await supabase.auth.updateUser({
-      password,
-    })
+    const { error } = await supabase.auth.updateUser({ password })
+    if (error) throw error
+    return { success: true }
+  } catch (err: any) {
+    return { success: false, error: err?.message ?? "Unable to update password" }
+  }
+}
 
-    if (error) {
-      throw error
-    }
+/* -------------------------------------------------------------------------- */
+/*                          Profile / Email management                        */
+/* -------------------------------------------------------------------------- */
+export async function updateProfile(data: Record<string, unknown>) {
+  try {
+    const {
+      data: { user },
+      error: userErr,
+    } = await supabase.auth.getUser()
 
-    return { success: true, error: null }
-  } catch (error: any) {
-    return { success: false, error: error.message }
+    if (userErr || !user) throw userErr ?? new Error("No authenticated user")
+
+    const { error } = await supabase
+      .from("users")
+      .update({ ...data, updated_at: new Date().toISOString() })
+      .eq("id", user.id)
+
+    if (error) throw error
+    return { success: true }
+  } catch (err: any) {
+    return { success: false, error: err?.message ?? "Unable to update profile" }
+  }
+}
+
+export async function updateEmail(email: string) {
+  try {
+    const { error } = await supabase.auth.updateUser({ email })
+    if (error) throw error
+    return { success: true }
+  } catch (err: any) {
+    return { success: false, error: err?.message ?? "Unable to update email" }
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/*                            Verification email helpers                      */
+/* -------------------------------------------------------------------------- */
+export async function resendVerificationEmail() {
+  try {
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser()
+
+    if (error || !user?.email) throw error ?? new Error("No user email")
+
+    const { error: resendErr } = await supabase.auth.resend({ type: "signup", email: user.email })
+    if (resendErr) throw resendErr
+
+    return { success: true }
+  } catch (err: any) {
+    return { success: false, error: err?.message ?? "Unable to resend verification email" }
+  }
+}
+
+export async function triggerVerificationEmail() {
+  // Alias for compatibility
+  return resendVerificationEmail()
+}
+
+/* -------------------------------------------------------------------------- */
+/*                               Session helpers                              */
+/* -------------------------------------------------------------------------- */
+export async function signOut() {
+  try {
+    const { error } = await supabase.auth.signOut()
+    if (error) throw error
+    return { success: true }
+  } catch (err: any) {
+    return { success: false, error: err?.message ?? "Error signing out" }
   }
 }
 
@@ -165,65 +215,8 @@ export async function getCurrentUser(): Promise<User | null> {
       data: { user },
     } = await supabase.auth.getUser()
     return user
-  } catch (error) {
-    console.error("Error getting current user:", error)
+  } catch (err) {
+    console.error("getCurrentUser:", err)
     return null
   }
 }
-
-// Additional auth functions
-export async function updateProfile(data: any) {
-  try {
-    const { data: user } = await supabase.auth.getUser()
-    if (!user.user) throw new Error("No authenticated user")
-
-    const { error } = await supabase
-      .from("users")
-      .update({
-        ...data,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", user.user.id)
-
-    if (error) throw error
-
-    return { success: true, data }
-  } catch (error: any) {
-    return { success: false, error: error.message }
-  }
-}
-
-export async function updateEmail(email: string) {
-  try {
-    const { error } = await supabase.auth.updateUser({ email })
-    if (error) throw error
-
-    return { success: true, email }
-  } catch (error: any) {
-    return { success: false, error: error.message }
-  }
-}
-
-export async function resendVerificationEmail() {
-  try {
-    const { data: user } = await supabase.auth.getUser()
-    if (!user.user?.email) throw new Error("No user email found")
-
-    const { error } = await supabase.auth.resend({
-      type: "signup",
-      email: user.user.email,
-    })
-
-    if (error) throw error
-
-    return { success: true }
-  } catch (error: any) {
-    return { success: false, error: error.message }
-  }
-}
-
-export async function triggerVerificationEmail() {
-  return resendVerificationEmail()
-}
-
-export { supabase }
