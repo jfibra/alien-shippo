@@ -1,57 +1,69 @@
-/**
- * Lightweight, **client-safe** activity-log helpers.
- * We purposefully avoid `next/headers` and other server-only imports
- * so this file can be imported from Client Components.
- *
- * Replace the mock implementations with real API calls as needed.
- */
+import { createClient } from "@supabase/supabase-js"
+import type { Database } from "@/types/supabase"
 
-export type ActivityLog = {
-  id: string
-  user_id: string
-  action: string
-  description: string
-  created_at: string
+/**
+ * Singleton Supabase service-role client (server-only).
+ * We use the service role key so the dashboard can list logs that
+ * belong to any user (e.g. for admin views).  NEVER expose this key
+ * to the browser; this module is only imported in Server Components
+ * or server actions/route-handlers.
+ */
+const supabaseAdmin =
+  /* ensure a single instance in dev hot-reload */ (
+    globalThis as unknown as { __supabaseAdmin?: ReturnType<typeof createClient> }
+  ).__supabaseAdmin ??
+  createClient<Database>(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+
+if (!(globalThis as any).__supabaseAdmin) {
+  ;(globalThis as any).__supabaseAdmin = supabaseAdmin
+}
+
+/* ------------------------------------------------------------------ */
+/* Types                                                               */
+/* ------------------------------------------------------------------ */
+
+export type ActivityLog = Database["public"]["Tables"]["activity_logs"]["Row"]
+
+/* ------------------------------------------------------------------ */
+/* Public API                                                          */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Fetch **all** activity logs (admin view).
+ * @param limit  Maximum number of rows to return (default 100)
+ */
+export async function getAllActivityLogs(limit = 100): Promise<ActivityLog[]> {
+  const { data, error } = await supabaseAdmin
+    .from("activity_logs")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(limit)
+
+  if (error) {
+    console.error("[activity-service] getAllActivityLogs ➜", error.message)
+    return []
+  }
+
+  return data ?? []
 }
 
 /**
- * Client-side mock – fetches recent activity logs.
- * Swap with a real fetch(`/api/activity-logs`) when backend is ready.
+ * Fetch recent activity logs for a single user.
+ * @param userId Supabase auth.user().id
+ * @param limit  Maximum number of rows to return (default 50)
  */
-export async function getUserActivityLogs(
-  _page: number,
-  _pageSize: number,
-  _filters: Record<string, any>,
-): Promise<{ data: ActivityLog[]; count: number }> {
-  // Demo/mock data
-  const data: ActivityLog[] = [
-    {
-      id: "1",
-      user_id: "demo",
-      action: "shipment_created",
-      description: "Created shipment #ABC123",
-      created_at: new Date().toISOString(),
-    },
-    {
-      id: "2",
-      user_id: "demo",
-      action: "funds_added",
-      description: "Added $50.00 to balance",
-      created_at: new Date(Date.now() - 3600_000).toISOString(),
-    },
-  ]
-  return { data, count: data.length }
-}
+export async function getUserActivityLogs(userId: string, limit = 50): Promise<ActivityLog[]> {
+  const { data, error } = await supabaseAdmin
+    .from("activity_logs")
+    .select("*")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(limit)
 
-/**
- * Admin-style helper – fetches activity logs across all users.
- * Replace this mock with a real fetch(`/api/activity-logs?all=true`) call later.
- */
-export async function getAllActivityLogs(
-  page = 1,
-  pageSize = 20,
-  filters: Record<string, any> = {},
-): Promise<{ data: ActivityLog[]; count: number }> {
-  // Re-use the existing mock for now.
-  return getUserActivityLogs(page, pageSize, filters)
+  if (error) {
+    console.error("[activity-service] getUserActivityLogs ➜", error.message)
+    return []
+  }
+
+  return data ?? []
 }
