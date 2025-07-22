@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { User, Settings, CreditCard, LogOut } from "lucide-react"
 import Link from "next/link"
+import { signOut } from "@/app/actions/auth-server"
 
 interface UserNavProps {
   user: {
@@ -33,6 +34,10 @@ export function UserNav({ user }: UserNavProps) {
     .map((name) => name[0])
     .join("")
     .toUpperCase()
+
+  const handleSignOut = async () => {
+    await signOut()
+  }
 
   return (
     <DropdownMenu>
@@ -73,7 +78,7 @@ export function UserNav({ user }: UserNavProps) {
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
-        <DropdownMenuItem className="text-red-600">
+        <DropdownMenuItem className="text-red-600 cursor-pointer" onClick={handleSignOut}>
           <LogOut className="mr-2 h-4 w-4" />
           <span>Log out</span>
         </DropdownMenuItem>

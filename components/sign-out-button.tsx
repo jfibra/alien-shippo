@@ -2,14 +2,11 @@
 
 import { Button } from "@/components/ui/button"
 import { LogOut } from "lucide-react"
-import { useRouter } from "next/navigation"
+import { signOut } from "@/app/actions/auth-server"
 
 export function SignOutButton() {
-  const router = useRouter()
-
-  const handleSignOut = () => {
-    // Mock sign out - just redirect to home
-    router.push("/")
+  const handleSignOut = async () => {
+    await signOut()
   }
 
   return (
