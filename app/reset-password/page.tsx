@@ -1,88 +1,159 @@
-import Link from "next/link"
-import type { Metadata } from "next"
-import { ResetPasswordForm } from "@/components/reset-password-form"
+"use client"
+
+import type React from "react"
+
+import { useState } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { AuthLayout } from "@/components/auth-layout"
-import { createServerClient } from "@supabase/ssr"
-import { cookies } from "next/headers"
-import { redirect } from "next/navigation"
+import { Input } from "@/components/ui/input"
+import { Loader2, Eye, EyeOff, AlertCircle } from "lucide-react"
+import { updatePassword } from "@/lib/auth"
+import { toast } from "sonner"
 
-export const metadata: Metadata = {
-  title: "Reset Password - Viking Freight",
-  description: "Set a new password for your Viking Freight account.",
-}
+export default function ResetPasswordPage() {
+  const [password, setPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
+  const [showPassword, setShowPassword] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const router = useRouter()
+  const searchParams = useSearchParams()
 
-export default async function ResetPasswordPage({
-  searchParams,
-}: {
-  searchParams: { token?: string; type?: string; error?: string; message?: string }
-}) {
-  const { token, type, error, message } = searchParams
-  const cookieStore = cookies()
+  // Check if we have a code in the URL (from email link)
+  const hasCode = searchParams.has("code")
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get: (name: string) => cookieStore.get(name)?.value,
-        set: (name: string, value: string, options: any) => cookieStore.set(name, value, options),
-        remove: (name: string, options: any) => cookieStore.set(name, "", options),
-      },
-    },
-  )
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    setError(null)
 
-  // Check if the user is already logged in
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.")
+      return
+    }
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters long.")
+      return
+    }
 
-  if (user) {
-    redirect("/dashboard")
+    setIsLoading(true)
+    try {
+      const result = await updatePassword(password)
+
+      if (result.success) {
+        toast.success("Password reset successful", {
+          description: "Your password has been updated. You can now log in with your new password.",
+        })
+        router.push("/login")
+      } else {
+        setError(result.error || "Failed to reset password. Please try again.")
+        toast.error("Password reset failed", {
+          description: result.error || "An error occurred. Please try again.",
+        })
+      }
+    } catch (err: any) {
+      setError(err.message || "An unexpected error occurred.")
+      toast.error("Password reset failed", {
+        description: err.message || "An unexpected error occurred.",
+      })
+    } finally {
+      setIsLoading(false)
+    }
   }
 
-  let displayMessage = message || "Enter your new password below."
-  let displayError = error
-
-  // If there's a token and type, it means the user came from a reset password email
-  if (token && type === "recovery") {
-    // This page will handle the actual password reset form
-    // The form itself will call supabase.auth.updateUser({ password: newPassword })
-    // We don't verify the token here, as it's handled by the client-side form submission
-    // and Supabase's `updateUser` method which implicitly uses the session from the token.
-  } else {
-    displayError = "Invalid or expired password reset link."
-    displayMessage = "Please request a new password reset link."
+  if (!hasCode) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <CardTitle className="text-red-600">Invalid Reset Link</CardTitle>
+            <CardDescription>
+              This password reset link is invalid or has expired. Please request a new password reset link.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Button onClick={() => router.push("/forgot-password")} className="w-full">
+              Request New Link
+            </Button>
+            <Button variant="outline" onClick={() => router.push("/login")} className="w-full">
+              Back to Login
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   return (
-    <AuthLayout>
+    <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl">Reset Password</CardTitle>
-          <CardDescription>{displayMessage}</CardDescription>
+          <CardTitle>Reset Your Password</CardTitle>
+          <CardDescription>Enter your new password below.</CardDescription>
         </CardHeader>
         <CardContent>
-          {displayError && (
-            <div className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700">
-              <p>{displayError}</p>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+                New Password
+              </label>
+              <div className="relative">
+                <Input
+                  id="password"
+                  name="password"
+                  type={showPassword ? "text" : "password"}
+                  autoComplete="new-password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full pr-10"
+                  placeholder="••••••••"
+                  disabled={isLoading}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-500"
+                >
+                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                </button>
+              </div>
             </div>
-          )}
-          {token && type === "recovery" ? (
-            <ResetPasswordForm />
-          ) : (
-            <div className="mt-4 text-center text-sm text-gray-600">
-              <p>
-                If you need a new link, please go to the{" "}
-                <Link href="/forgot-password" className="font-medium text-gold hover:underline">
-                  Forgot Password
-                </Link>{" "}
-                page.
-              </p>
+            <div>
+              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">
+                Confirm New Password
+              </label>
+              <Input
+                id="confirmPassword"
+                name="confirmPassword"
+                type="password"
+                autoComplete="new-password"
+                required
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="w-full"
+                placeholder="••••••••"
+                disabled={isLoading}
+              />
             </div>
-          )}
+            {error && (
+              <div className="text-red-500 text-sm flex items-center">
+                <AlertCircle className="h-4 w-4 mr-1" />
+                {error}
+              </div>
+            )}
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Resetting...
+                </>
+              ) : (
+                "Reset Password"
+              )}
+            </Button>
+          </form>
         </CardContent>
       </Card>
-    </AuthLayout>
+    </div>
   )
 }

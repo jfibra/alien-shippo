@@ -198,7 +198,7 @@ export async function magicLinkLogin(formData: FormData) {
     const { error } = await supabase.auth.signInWithOtp({
       email: validatedEmail,
       options: {
-        emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
+        emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/magic`,
       },
     })
 
@@ -236,7 +236,7 @@ export async function forgotPassword(formData: FormData) {
 
     // Send password reset email
     const { error } = await supabase.auth.resetPasswordForEmail(validatedEmail, {
-      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/reset-password`,
+      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/reset-password`,
     })
 
     if (error) {
@@ -346,7 +346,7 @@ export async function resetPassword(password: string) {
 export async function sendPasswordResetEmail(email: string) {
   const supabase = getSupabaseServerActionClient()
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/reset-password`,
+    redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/reset-password`,
   })
 
   if (error) {
