@@ -22,7 +22,7 @@ function getSupabaseServerActionClient() {
 const registerSchema = z
   .object({
     firstName: z.string().min(2, "First name must be at least 2 characters"),
-    middleName: z.string().optional(),
+    middleName: z.string().optional().nullable(),
     lastName: z.string().min(2, "Last name must be at least 2 characters"),
     email: z.string().email("Invalid email address"),
     password: z.string().min(8, "Password must be at least 8 characters"),
@@ -41,7 +41,7 @@ const loginSchema = z.object({
 // Register function
 export async function register(formData: FormData) {
   const firstName = formData.get("firstName") as string
-  const middleName = (formData.get("middleName") as string) || null
+  const middleName = formData.get("middleName") as string | null
   const lastName = formData.get("lastName") as string
   const email = formData.get("email") as string
   const password = formData.get("password") as string
@@ -68,7 +68,7 @@ export async function register(formData: FormData) {
         emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
         data: {
           first_name: validatedData.firstName,
-          middle_name: validatedData.middleName,
+          middle_name: validatedData.middleName || null,
           last_name: validatedData.lastName,
         },
       },
@@ -86,7 +86,7 @@ export async function register(formData: FormData) {
         email: validatedData.email,
         password: "", // Password is handled by Supabase Auth, we just need a placeholder
         first_name: validatedData.firstName,
-        middle_name: validatedData.middleName,
+        middle_name: validatedData.middleName || null,
         last_name: validatedData.lastName,
         role: "user",
         email_verified: false,

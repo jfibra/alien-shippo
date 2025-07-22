@@ -56,7 +56,10 @@ export function SignupForm() {
 
     const submitFormData = new FormData()
     submitFormData.append("firstName", formData.firstName)
-    submitFormData.append("middleName", formData.middleName)
+    // Only append middleName if it's not empty
+    if (formData.middleName.trim()) {
+      submitFormData.append("middleName", formData.middleName)
+    }
     submitFormData.append("lastName", formData.lastName)
     submitFormData.append("email", formData.email)
     submitFormData.append("password", formData.password)
@@ -219,3 +222,5 @@ export function SignupForm() {
     </form>
   )
 }
+
+export default SignupForm
