@@ -5,7 +5,7 @@ import { SiteFooter } from "@/components/site-footer"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Truck, DollarSign, Zap, Users, Star, Package, Globe, ShieldCheck, Check } from "lucide-react"
-import { ShippingCalculator } from "@/components/shipping-calculator" // Imported here
+import { ShippingCalculatorSection } from "@/components/shipping-calculator-section"
 
 export default function HomePage() {
   return (
@@ -175,19 +175,11 @@ export default function HomePage() {
         </section>
 
         {/* Shipping Calculator Section */}
-        <section className="py-20 bg-stone">
-          <div className="container mx-auto px-4">
-            <div className="max-w-3xl mx-auto text-center mb-12">
-              <h2 className="text-3xl md:text-4xl font-bold text-navy mb-4">Calculate Your Cosmic Shipping Rates</h2>
-              <p className="text-lg text-gray-600">
-                See how much you can save with AlienShipper's alien-negotiated rates.
-              </p>
-            </div>
-            <div className="max-w-4xl mx-auto">
-              <ShippingCalculator /> {/* Rendered here */}
-            </div>
-          </div>
-        </section>
+        <ShippingCalculatorSection
+          title="Calculate Your Cosmic Shipping Rates"
+          description="See how much you can save with AlienShipper's alien-negotiated rates."
+          className="bg-stone"
+        />
 
         {/* Testimonials Section */}
         <section className="py-20 bg-white">

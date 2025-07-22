@@ -8,12 +8,10 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Menu } from "lucide-react"
 
 const navigation = [
-  { name: "Features", href: "/features" },
-  { name: "How It Works", href: "/how-it-works" },
-  { name: "Pricing", href: "/pricing" },
+  { name: "Home", href: "/" },
   { name: "About", href: "/about" },
+  { name: "Pricing", href: "/pricing" },
   { name: "Contact", href: "/contact" },
-  { name: "Support", href: "/support" },
 ]
 
 export function SiteHeader() {

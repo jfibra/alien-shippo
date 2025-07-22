@@ -3,7 +3,7 @@ import type { Metadata } from "next"
 import { SiteHeader } from "@/components/site-header"
 import { SiteFooter } from "@/components/site-footer"
 import { Button } from "@/components/ui/button"
-import { ShippingCalculator } from "@/components/shipping-calculator" // Imported here
+import { ShippingCalculatorSection } from "@/components/shipping-calculator-section"
 import { CheckCircle } from "lucide-react"
 
 export const metadata: Metadata = {
@@ -127,20 +127,11 @@ export default function PricingPage() {
         </section>
 
         {/* Shipping Calculator */}
-        <section className="py-24 bg-stone">
-          <div className="container mx-auto px-4">
-            <div className="max-w-3xl mx-auto text-center mb-16">
-              <h2 className="text-3xl font-bold text-navy mb-6">Calculate Your Galactic Shipping Rates</h2>
-              <p className="text-lg text-gray-600">
-                See how much you can save with AlienShipper's alien-negotiated rates.
-              </p>
-            </div>
-
-            <div className="max-w-4xl mx-auto">
-              <ShippingCalculator /> {/* Rendered here */}
-            </div>
-          </div>
-        </section>
+        <ShippingCalculatorSection
+          title="Calculate Your Galactic Shipping Rates"
+          description="See how much you can save with AlienShipper's alien-negotiated rates."
+          className="bg-stone"
+        />
 
         {/* FAQ */}
         <section className="py-24 bg-white">
