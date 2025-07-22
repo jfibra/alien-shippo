@@ -14,6 +14,7 @@ import {
 import { User, Settings, CreditCard, LogOut } from "lucide-react"
 import Link from "next/link"
 import { signOut } from "@/app/actions/auth-server"
+import { useTransition } from "react"
 
 interface UserNavProps {
   user: {
@@ -29,14 +30,22 @@ interface UserNavProps {
 }
 
 export function UserNav({ user }: UserNavProps) {
+  const [isPending, startTransition] = useTransition()
+
   const initials = user.full_name
     .split(" ")
     .map((name) => name[0])
     .join("")
     .toUpperCase()
 
-  const handleSignOut = async () => {
-    await signOut()
+  const handleSignOut = () => {
+    startTransition(async () => {
+      try {
+        await signOut()
+      } catch (error) {
+        console.error("Error signing out:", error)
+      }
+    })
   }
 
   return (
@@ -78,9 +87,13 @@ export function UserNav({ user }: UserNavProps) {
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
-        <DropdownMenuItem className="text-red-600 cursor-pointer" onClick={handleSignOut}>
+        <DropdownMenuItem
+          className="text-red-600 cursor-pointer focus:text-red-600 focus:bg-red-50"
+          onClick={handleSignOut}
+          disabled={isPending}
+        >
           <LogOut className="mr-2 h-4 w-4" />
-          <span>Log out</span>
+          <span>{isPending ? "Signing out..." : "Log out"}</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

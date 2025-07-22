@@ -2,10 +2,11 @@
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { Home, Package, CreditCard, MapPin, Activity, HelpCircle, X, Rocket } from "lucide-react"
+import { Home, Package, CreditCard, MapPin, Activity, HelpCircle, X, Rocket, LogOut } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { signOut } from "@/app/actions/auth-server"
 
 interface DashboardSidebarProps {
   open: boolean
@@ -25,6 +26,14 @@ const navigation = [
 export function DashboardSidebar({ open, setOpen, className }: DashboardSidebarProps) {
   const pathname = usePathname()
 
+  const handleSignOut = async () => {
+    try {
+      await signOut()
+    } catch (error) {
+      console.error("Error signing out:", error)
+    }
+  }
+
   return (
     <>
       {/* Mobile overlay */}
@@ -43,7 +52,7 @@ export function DashboardSidebar({ open, setOpen, className }: DashboardSidebarP
         {/* Header */}
         <div className="flex h-16 shrink-0 items-center justify-between px-6 border-b border-gray-200">
           <Link href="/dashboard" className="flex items-center space-x-2">
-            <Image src="/alienshippo-logo.png" alt="AlienShipper" width={32} height={32} className="h-8 w-auto" />
+            <Image src="/viking-freight-logo.png" alt="Viking Freight" width={32} height={32} className="h-8 w-auto" />
           </Link>
 
           {/* Close button for mobile */}
@@ -81,12 +90,21 @@ export function DashboardSidebar({ open, setOpen, className }: DashboardSidebarP
           </ul>
 
           {/* Bottom section */}
-          <div className="mt-auto pt-4 border-t border-gray-200">
+          <div className="mt-auto pt-4 space-y-2 border-t border-gray-200">
             <Button asChild className="w-full bg-blue-600 hover:bg-blue-700">
               <Link href="/dashboard/ship" className="flex items-center space-x-2">
                 <Rocket className="h-4 w-4" />
                 <span>Create Shipment</span>
               </Link>
+            </Button>
+
+            <Button
+              variant="outline"
+              className="w-full text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700 bg-transparent"
+              onClick={handleSignOut}
+            >
+              <LogOut className="h-4 w-4 mr-2" />
+              Sign Out
             </Button>
           </div>
         </nav>
