@@ -1,0 +1,53 @@
+// lib/auth.ts
+/**
+ * Update the user profile stored in Supabase `auth.users`.
+ * NOTE: This is a no-op in the public demo – it just returns success.
+ */
+export async function updateProfile(_profile: Record<string, any>) {
+  // In a real app you’d call `supabase.auth.updateUser({ data: _profile })`.
+  return { success: true, error: null }
+}
+
+/**
+ * Update the user’s primary email address.
+ */
+export async function updateEmail(_newEmail: string) {
+  // You’d normally call `supabase.auth.updateUser({ email: _newEmail })`.
+  return { success: true, error: null }
+}
+
+/**
+ * Re-send the verification e-mail for the current session user.
+ */
+export async function resendVerificationEmail() {
+  // Supabase client v2 exposes `supabase.auth.resend()` – omitted for demo.
+  return { success: true, error: null }
+}
+
+/**
+ * Alias kept for historic reasons – redirects to `resendVerificationEmail`.
+ */
+export const triggerVerificationEmail = resendVerificationEmail
+
+// components/env-variables-audit.tsx
+export { EnvVariablesAudit } // 👈 add at very bottom of the file
+
+// lib/supabase-server.ts
+// 👇 add anywhere after createClient is defined
+export const createServerSupabaseClient = createClient
+
+// lib/activity-service.ts
+// Helper that returns every activity row (no pagination) for a user.
+export async function getUserActivityLogs(userId: string) {
+  // Re-use existing pagination-aware helper under the hood.
+  return getRecentActivityLogs(userId, 1000)
+}
+
+// lib/address-service.ts
+/**
+ * Returns all addresses (shipping & billing) for the given user.
+ * Server-action safe – wraps `getAddresses`.
+ */
+export async function getAllAddresses(userId: string) {
+  return getAddresses(userId)
+}

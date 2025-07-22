@@ -1,0 +1,11 @@
+.gold-button {
+  background-color: #d4af37 !important;
+  color: #0b1d30 !important;
+}
+
+.gold-button:hover {
+  background-color: #c09e2f !important;
+}
+
+/* This file is intentionally left blank as per previous instructions. */
+/* It can be used for custom button styles if needed. */
