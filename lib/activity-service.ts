@@ -42,3 +42,16 @@ export async function getUserActivityLogs(
   ]
   return { data, count: data.length }
 }
+
+/**
+ * Admin-style helper – fetches activity logs across all users.
+ * Replace this mock with a real fetch(`/api/activity-logs?all=true`) call later.
+ */
+export async function getAllActivityLogs(
+  page = 1,
+  pageSize = 20,
+  filters: Record<string, any> = {},
+): Promise<{ data: ActivityLog[]; count: number }> {
+  // Re-use the existing mock for now.
+  return getUserActivityLogs(page, pageSize, filters)
+}
