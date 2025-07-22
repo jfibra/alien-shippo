@@ -116,3 +116,5 @@ export function ResetPasswordForm() {
     </form>
   )
 }
+
+export default ResetPasswordForm

@@ -1,119 +1,44 @@
-import { createServerClient } from "@supabase/ssr"
-import { cookies } from "next/headers"
-import type { ActivityLog } from "./types"
+/**
+ * Lightweight, **client-safe** activity-log helpers.
+ * We purposefully avoid `next/headers` and other server-only imports
+ * so this file can be imported from Client Components.
+ *
+ * Replace the mock implementations with real API calls as needed.
+ */
 
-// Mock activity service for demo purposes
-
-export async function getRecentActivityLogs(userId: string, limit = 5): Promise<ActivityLog[]> {
-  const cookieStore = cookies()
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get: (name: string) => cookieStore.get(name)?.value,
-        set: (name: string, value: string, options: any) => cookieStore.set(name, value, options),
-        remove: (name: string, options: any) => cookieStore.set(name, "", options),
-      },
-    },
-  )
-
-  const { data, error } = await supabase
-    .from("activity_logs")
-    .select("*")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false })
-    .limit(limit)
-
-  if (error) {
-    console.error("Error fetching recent activity logs:", error)
-    return []
-  }
-
-  return data || []
+export type ActivityLog = {
+  id: string
+  user_id: string
+  action: string
+  description: string
+  created_at: string
 }
 
-export async function getAllActivityLogs(
-  userId: string,
-  page = 1,
-  pageSize = 10,
-): Promise<{ logs: ActivityLog[]; totalCount: number }> {
-  const cookieStore = cookies()
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+/**
+ * Client-side mock – fetches recent activity logs.
+ * Swap with a real fetch(`/api/activity-logs`) when backend is ready.
+ */
+export async function getUserActivityLogs(
+  _page: number,
+  _pageSize: number,
+  _filters: Record<string, any>,
+): Promise<{ data: ActivityLog[]; count: number }> {
+  // Demo/mock data
+  const data: ActivityLog[] = [
     {
-      cookies: {
-        get: (name: string) => cookieStore.get(name)?.value,
-        set: (name: string, value: string, options: any) => cookieStore.set(name, value, options),
-        remove: (name: string, options: any) => cookieStore.set(name, "", options),
-      },
+      id: "1",
+      user_id: "demo",
+      action: "shipment_created",
+      description: "Created shipment #ABC123",
+      created_at: new Date().toISOString(),
     },
-  )
-
-  const offset = (page - 1) * pageSize
-
-  const { data, error, count } = await supabase
-    .from("activity_logs")
-    .select("*", { count: "exact" })
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false })
-    .range(offset, offset + pageSize - 1)
-
-  if (error) {
-    console.error("Error fetching all activity logs:", error)
-    return { logs: [], totalCount: 0 }
-  }
-
-  return { logs: data || [], totalCount: count || 0 }
-}
-
-export async function addActivityLog(
-  log: Omit<ActivityLog, "id" | "created_at">,
-): Promise<{ success: boolean; error?: string }> {
-  const cookieStore = cookies()
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
-      cookies: {
-        get: (name: string) => cookieStore.get(name)?.value,
-        set: (name: string, value: string, options: any) => cookieStore.set(name, value, options),
-        remove: (name: string, options: any) => cookieStore.set(name, "", options),
-      },
+      id: "2",
+      user_id: "demo",
+      action: "funds_added",
+      description: "Added $50.00 to balance",
+      created_at: new Date(Date.now() - 3600_000).toISOString(),
     },
-  )
-
-  const { error } = await supabase.from("activity_logs").insert(log)
-
-  if (error) {
-    console.error("Error adding activity log:", error)
-    return { success: false, error: error.message }
-  }
-
-  return { success: true }
-}
-
-// Mock activity service for dashboard demo
-export async function getUserActivityLogs(userId: string) {
-  // Return mock activity data
-  return {
-    success: true,
-    data: [
-      {
-        id: "activity_1",
-        user_id: userId,
-        action: "shipment_created",
-        description: "Created new shipment AS123456789",
-        created_at: "2024-07-20T10:00:00Z",
-      },
-      {
-        id: "activity_2",
-        user_id: userId,
-        action: "funds_added",
-        description: "Added $100.00 to account",
-        created_at: "2024-07-19T14:30:00Z",
-      },
-    ],
-  }
+  ]
+  return { data, count: data.length }
 }

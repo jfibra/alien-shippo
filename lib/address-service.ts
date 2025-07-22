@@ -1,64 +1,67 @@
 /**
- * Address-related helpers that run on the server.
- * Uses the singleton Supabase server client already present in the repo.
- *
- * NOTE: Adjust the table / column names if your schema differs.
+ * **Client-friendly** address helpers (no server-only imports).
+ * All functions currently use mock data so they can run in the browser.
+ * Replace with real API requests or server actions when ready.
  */
 
-import "server-only"
-import { z } from "zod"
-import { supabaseServer } from "@/lib/supabase-server" // existing singleton
-
-/* ---------- Types ---------- */
-
-export const addressSchema = z.object({
-  id: z.string().uuid().optional(),
-  user_id: z.string().uuid(),
-  name: z.string().min(1).max(100),
-  company: z.string().max(100).optional().nullable(),
-  phone: z.string().max(30).optional().nullable(),
-  email: z.string().email().optional().nullable(),
-  street1: z.string().min(1).max(255),
-  street2: z.string().max(255).optional().nullable(),
-  city: z.string().min(1).max(100),
-  state: z.string().min(1).max(100),
-  postal_code: z.string().min(1).max(20),
-  country: z.string().min(2).max(2),
-})
-
-export type AddressInput = z.infer<typeof addressSchema>
-export type Address = AddressInput & { id: string }
-
-/* ---------- CRUD helpers ---------- */
-
-export async function getAllAddresses(userId: string) {
-  const { data, error } = await supabaseServer
-    .from("addresses")
-    .select("*")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false })
-
-  return { data, error }
+export type Address = {
+  id: string
+  user_id: string
+  name: string
+  company?: string | null
+  street1: string
+  street2?: string | null
+  city: string
+  state: string
+  postal_code: string
+  country: string
+  phone?: string | null
+  email?: string | null
+  is_default?: boolean | null
 }
 
-export async function addAddress(input: AddressInput) {
-  const validated = addressSchema.safeParse(input)
-  if (!validated.success) {
-    return { data: null, error: validated.error.message }
-  }
+/* ------------------------------ MOCK DATA ------------------------------ */
 
-  const { data, error } = await supabaseServer.from("addresses").insert(validated.data).select().single()
+const mockAddresses: Address[] = [
+  {
+    id: "addr_1",
+    user_id: "demo",
+    name: "John Doe",
+    company: "Acme Corp",
+    street1: "123 Main St",
+    street2: "Suite 100",
+    city: "New York",
+    state: "NY",
+    postal_code: "10001",
+    country: "US",
+    phone: "555-123-4567",
+    email: "john@acme.com",
+    is_default: true,
+  },
+]
 
-  return { data, error }
+/* ------------------------------ API-LIKE HELPERS ------------------------------ */
+
+export async function getAllAddresses(_userId: string) {
+  return { success: true, addresses: mockAddresses }
 }
 
-export async function updateAddress(id: string, input: Partial<AddressInput>) {
-  const { data, error } = await supabaseServer.from("addresses").update(input).eq("id", id).select().single()
+export async function addAddress(address: Omit<Address, "id">) {
+  const newAddr: Address = { ...address, id: `addr_${Date.now()}` }
+  mockAddresses.push(newAddr)
+  return { success: true, address: newAddr }
+}
 
-  return { data, error }
+export async function updateAddress(id: string, updates: Partial<Address>) {
+  const idx = mockAddresses.findIndex((a) => a.id === id)
+  if (idx === -1) return { success: false, error: "Address not found" }
+  mockAddresses[idx] = { ...mockAddresses[idx], ...updates }
+  return { success: true, address: mockAddresses[idx] }
 }
 
 export async function deleteAddress(id: string) {
-  const { error } = await supabaseServer.from("addresses").delete().eq("id", id)
-  return { success: !error, error }
+  const idx = mockAddresses.findIndex((a) => a.id === id)
+  if (idx === -1) return { success: false, error: "Address not found" }
+  mockAddresses.splice(idx, 1)
+  return { success: true }
 }
