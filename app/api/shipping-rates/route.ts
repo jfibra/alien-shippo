@@ -103,6 +103,16 @@ export async function POST(request: NextRequest) {
           packageDimensions = { length, width, height }
         }
         break
+      case "letter":
+        packageDimensions = { length: "11.5", width: "6.125", height: "0.25" }
+        break
+      case "flat":
+        packageDimensions = { length: "15", width: "12", height: "0.75" }
+        break
+      case "parcel":
+      default:
+        // Keep default dimensions for parcel
+        break
     }
 
     // Create shipment object for Shippo with required address fields
@@ -120,11 +130,14 @@ export async function POST(request: NextRequest) {
       },
       address_to: {
         name: "Customer",
+        company: "", // Added empty company field
         street1: "456 Oak Ave",
         city: "New York",
         state: "NY",
         zip: toZip.trim(),
         country: "US",
+        phone: "555-987-6543", // Added phone field
+        email: "customer@example.com", // Added email field
       },
       parcels: [
         {
@@ -137,7 +150,10 @@ export async function POST(request: NextRequest) {
         },
       ],
       async: false,
-      // Remove carrier_accounts to let Shippo use default accounts
+      extra: {
+        is_return: false,
+        signature_confirmation: false,
+      },
     }
 
     console.log("Sending request to Shippo:", JSON.stringify(shipmentData, null, 2))
@@ -163,32 +179,35 @@ export async function POST(request: NextRequest) {
 
     // Extract rates from Shippo response, filtering out problematic carriers
     const rates: ShippingRate[] = []
-    const allowedCarriers = ["USPS", "UPS", "FEDEX"]
+    const allowedCarriers = ["USPS", "UPS", "FEDEX", "DHL", "DHLE", "DHLP"] // Added more carriers
 
     if (shippoData.rates && Array.isArray(shippoData.rates)) {
       shippoData.rates.forEach((rate: ShippoRate) => {
         // Skip rates with critical errors
         if (rate.messages && rate.messages.length > 0) {
           const hasCriticalError = rate.messages.some(
-            (msg) =>
-              msg.text.includes("doesn't support") ||
-              msg.text.includes("must not be empty") ||
-              msg.text.includes("DHL Express master account"),
+            (msg) => msg.text.includes("must not be empty") || msg.text.includes("Invalid token"),
           )
           if (hasCriticalError) {
             return
           }
+          // Log warnings but don't filter them out
+          rate.messages.forEach((msg) => {
+            console.warn(`Rate warning for ${rate.provider} ${rate.servicelevel.name}: ${msg.text}`)
+          })
         }
 
         // Only include US domestic carriers
         const carrier = rate.provider.toUpperCase()
         if (!allowedCarriers.includes(carrier)) {
+          console.log(`Skipping carrier not in allowed list: ${carrier}`)
           return
         }
 
         // Validate rate amount
         const rateAmount = Number.parseFloat(rate.amount)
         if (isNaN(rateAmount) || rateAmount <= 0) {
+          console.log(`Skipping rate with invalid amount: ${rate.amount}`)
           return
         }
 
@@ -210,11 +229,20 @@ export async function POST(request: NextRequest) {
 
     // Return success even if no rates (better UX)
     if (rates.length === 0) {
+      // Try to provide more helpful error message
+      let message = "No shipping rates available for this route."
+
+      if (shippoData.messages && Array.isArray(shippoData.messages) && shippoData.messages.length > 0) {
+        message = shippoData.messages.map((m) => m.text).join(". ")
+      } else if (shippoData.rates && shippoData.rates.length === 0) {
+        message = "No rates returned from carriers. Try different ZIP codes or package dimensions."
+      }
+
       return NextResponse.json({
         rates: [],
         source: "shippo",
         success: true,
-        message: "No shipping rates available for this route. Please try different ZIP codes.",
+        message,
       })
     }
 

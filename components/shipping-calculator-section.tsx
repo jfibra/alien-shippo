@@ -6,8 +6,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Calculator, Package, Loader2, AlertCircle, CheckCircle, Truck } from "lucide-react"
+import { Calculator, Package, Loader2, AlertCircle, CheckCircle, Truck, Info } from "lucide-react"
 import { toast } from "@/components/ui/use-toast"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 interface ShippingRate {
   id: string
@@ -22,15 +24,19 @@ interface ShippingCalculatorSectionProps {
   title?: string
   description?: string
   className?: string
+  defaultFromZip?: string
+  defaultToZip?: string
 }
 
 export function ShippingCalculatorSection({
   title = "Real-Time Shipping Rate Calculator",
   description = "Get instant quotes from USPS, UPS, and FedEx with live carrier rates",
   className = "",
+  defaultFromZip = "",
+  defaultToZip = "",
 }: ShippingCalculatorSectionProps) {
-  const [fromZip, setFromZip] = useState("")
-  const [toZip, setToZip] = useState("")
+  const [fromZip, setFromZip] = useState(defaultFromZip)
+  const [toZip, setToZip] = useState(defaultToZip)
   const [weight, setWeight] = useState("")
   const [packageType, setPackageType] = useState("parcel")
   const [dimensions, setDimensions] = useState({ length: "", width: "", height: "" })
@@ -38,6 +44,8 @@ export function ShippingCalculatorSection({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [dataSource, setDataSource] = useState<string>("")
+  const [activeTab, setActiveTab] = useState<string>("all")
+  const [lastSearchParams, setLastSearchParams] = useState<Record<string, string>>({})
 
   const validateZipCode = (zip: string) => {
     return /^\d{5}(-\d{4})?$/.test(zip.trim())
@@ -126,6 +134,9 @@ export function ShippingCalculatorSection({
         }),
       }
 
+      // Save search parameters for potential retry
+      setLastSearchParams(requestBody)
+
       console.log("Sending request:", requestBody)
 
       const response = await fetch("/api/shipping-rates", {
@@ -149,6 +160,7 @@ export function ShippingCalculatorSection({
 
       setRates(data.rates || [])
       setDataSource(data.source || "unknown")
+      setActiveTab("all") // Reset to show all rates
 
       if (!data.rates || data.rates.length === 0) {
         setError(
@@ -169,6 +181,65 @@ export function ShippingCalculatorSection({
         description: errorMessage,
         variant: "destructive",
       })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Function to retry with slightly different parameters
+  const retryWithAlternatives = async () => {
+    if (!lastSearchParams.fromZip || !lastSearchParams.toZip) return
+
+    setLoading(true)
+    setError("")
+
+    try {
+      // Try with a slightly different package type
+      const alternativePackageType = lastSearchParams.packageType === "parcel" ? "custom" : "parcel"
+
+      const requestBody = {
+        ...lastSearchParams,
+        packageType: alternativePackageType,
+        // If switching to custom, provide dimensions
+        ...(alternativePackageType === "custom" && {
+          length: "12",
+          width: "8",
+          height: "6",
+        }),
+      }
+
+      toast({
+        title: "Trying Alternative Package Type",
+        description: "Searching for more shipping options with different parameters",
+      })
+
+      const response = await fetch("/api/shipping-rates", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(requestBody),
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const data = await response.json()
+
+      if (data.rates && data.rates.length > 0) {
+        setRates(data.rates)
+        setDataSource(data.source || "unknown")
+        setError("")
+        toast({
+          title: "Additional Rates Found",
+          description: `Found ${data.rates.length} shipping options with alternative parameters`,
+        })
+      } else {
+        setError("No additional rates found with alternative parameters.")
+      }
+    } catch (err) {
+      console.error("Error in retry:", err)
     } finally {
       setLoading(false)
     }
@@ -209,6 +280,14 @@ export function ShippingCalculatorSection({
             <span className="text-white font-bold text-xs">FedEx</span>
           </div>
         )
+      case "DHL":
+      case "DHLE":
+      case "DHLP":
+        return (
+          <div className="w-12 h-12 bg-red-600 rounded flex items-center justify-center">
+            <span className="text-white font-bold text-xs">DHL</span>
+          </div>
+        )
       default:
         return (
           <div className="w-12 h-12 bg-gray-400 rounded flex items-center justify-center">
@@ -217,6 +296,15 @@ export function ShippingCalculatorSection({
         )
     }
   }
+
+  // Filter rates based on active tab
+  const filteredRates = rates.filter((rate) => {
+    if (activeTab === "all") return true
+    return rate.carrier.toUpperCase() === activeTab.toUpperCase()
+  })
+
+  // Get unique carriers for tabs
+  const uniqueCarriers = [...new Set(rates.map((rate) => rate.carrier.toUpperCase()))]
 
   return (
     <section className={`py-12 ${className}`}>
@@ -287,9 +375,23 @@ export function ShippingCalculatorSection({
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="package-type" className="text-sm">
-                  Package Type *
-                </Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="package-type" className="text-sm">
+                    Package Type *
+                  </Label>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="h-4 w-4 text-gray-400" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p className="max-w-xs text-xs">
+                          Package type affects available rates. Try different types if you don't see expected options.
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
                 <Select value={packageType} onValueChange={setPackageType}>
                   <SelectTrigger className="text-sm">
                     <SelectValue placeholder="Select package type" />
@@ -378,9 +480,22 @@ export function ShippingCalculatorSection({
             </Button>
 
             {error && (
-              <div className="p-3 sm:p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
-                <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
-                <p className="text-red-800 text-sm">{error}</p>
+              <div className="p-3 sm:p-4 bg-red-50 border border-red-200 rounded-lg flex flex-col gap-3">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-red-800 text-sm">{error}</p>
+                </div>
+                {lastSearchParams.fromZip && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={retryWithAlternatives}
+                    disabled={loading}
+                    className="self-end bg-transparent"
+                  >
+                    Try Alternative Package Type
+                  </Button>
+                )}
               </div>
             )}
 
@@ -395,38 +510,63 @@ export function ShippingCalculatorSection({
                     </div>
                   )}
                 </div>
-                <div className="grid gap-2 sm:gap-3">
-                  {rates.map((rate, index) => {
-                    // Calculate estimated retail price and savings
-                    const retailMultiplier = rate.carrier === "USPS" ? 1.4 : 1.3
-                    const retailPrice = rate.rate * retailMultiplier
-                    const savings = Math.round(((retailPrice - rate.rate) / retailPrice) * 100)
 
-                    return (
-                      <div
-                        key={rate.id || index}
-                        className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 border rounded-lg space-y-2 sm:space-y-0 hover:bg-gray-50 transition-colors"
-                      >
-                        <div className="flex items-center gap-3">
-                          {getCarrierLogo(rate.carrier)}
-                          <div className="min-w-0">
-                            <div className="font-medium text-sm sm:text-base truncate">
-                              {rate.carrier} {rate.service}
-                            </div>
-                            <div className="text-xs sm:text-sm text-gray-500">
-                              Retail: ${retailPrice.toFixed(2)} • Save {savings}%
-                              {rate.estimated_days && ` • ${rate.estimated_days} business days`}
-                              {rate.duration_terms && ` • ${rate.duration_terms}`}
+                {uniqueCarriers.length > 1 && (
+                  <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                    <TabsList className="w-full">
+                      <TabsTrigger value="all" className="flex-1">
+                        All ({rates.length})
+                      </TabsTrigger>
+                      {uniqueCarriers.map((carrier) => {
+                        const count = rates.filter((r) => r.carrier.toUpperCase() === carrier).length
+                        return (
+                          <TabsTrigger key={carrier} value={carrier} className="flex-1">
+                            {carrier} ({count})
+                          </TabsTrigger>
+                        )
+                      })}
+                    </TabsList>
+                  </Tabs>
+                )}
+
+                <div className="grid gap-2 sm:gap-3">
+                  {filteredRates.length > 0 ? (
+                    filteredRates.map((rate, index) => {
+                      // Calculate estimated retail price and savings
+                      const retailMultiplier = rate.carrier === "USPS" ? 1.4 : 1.3
+                      const retailPrice = rate.rate * retailMultiplier
+                      const savings = Math.round(((retailPrice - rate.rate) / retailPrice) * 100)
+
+                      return (
+                        <div
+                          key={rate.id || index}
+                          className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 border rounded-lg space-y-2 sm:space-y-0 hover:bg-gray-50 transition-colors"
+                        >
+                          <div className="flex items-center gap-3">
+                            {getCarrierLogo(rate.carrier)}
+                            <div className="min-w-0">
+                              <div className="font-medium text-sm sm:text-base truncate">
+                                {rate.carrier} {rate.service}
+                              </div>
+                              <div className="text-xs sm:text-sm text-gray-500">
+                                Retail: ${retailPrice.toFixed(2)} • Save {savings}%
+                                {rate.estimated_days && ` • ${rate.estimated_days} business days`}
+                                {rate.duration_terms && ` • ${rate.duration_terms}`}
+                              </div>
                             </div>
                           </div>
+                          <div className="text-left sm:text-right">
+                            <div className="text-lg sm:text-xl font-bold text-green-600">${rate.rate.toFixed(2)}</div>
+                            <div className="text-xs sm:text-sm text-gray-500">Viking Rate</div>
+                          </div>
                         </div>
-                        <div className="text-left sm:text-right">
-                          <div className="text-lg sm:text-xl font-bold text-green-600">${rate.rate.toFixed(2)}</div>
-                          <div className="text-xs sm:text-sm text-gray-500">Viking Rate</div>
-                        </div>
-                      </div>
-                    )
-                  })}
+                      )
+                    })
+                  ) : (
+                    <div className="text-center p-4 text-gray-500">
+                      No rates available for the selected carrier. Try a different carrier or package type.
+                    </div>
+                  )}
                 </div>
                 <div className="text-xs text-gray-500 text-center">
                   Rates updated in real-time from carrier APIs via Shippo
