@@ -71,7 +71,7 @@ export function RecentShipments({ shipments }: RecentShipmentsProps) {
                     <TableCell>
                       {shipment.to_address.city}, {shipment.to_address.state}
                     </TableCell>
-                    <TableCell className="text-right">${shipment.cost.toFixed(2)}</TableCell>
+                    <TableCell className="text-right">${shipment.cost ? shipment.cost.toFixed(2) : "0.00"}</TableCell>
                     <TableCell className="text-right">
                       {format(new Date(shipment.created_at), "MMM dd, yyyy")}
                     </TableCell>

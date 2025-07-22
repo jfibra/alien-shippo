@@ -1,67 +1,88 @@
-/**
- * **Client-friendly** address helpers (no server-only imports).
- * All functions currently use mock data so they can run in the browser.
- * Replace with real API requests or server actions when ready.
- */
+"use server"
+
+import { createServerClient } from "@supabase/ssr"
+import { cookies } from "next/headers"
+
+function getSupabaseServerActionClient() {
+  const cookieStore = cookies()
+  return createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
+    cookies: {
+      get: (name: string) => cookieStore.get(name)?.value,
+      set: (name: string, value: string, options: any) => cookieStore.set(name, value, options),
+      remove: (name: string, options: any) => cookieStore.set(name, "", options),
+    },
+  })
+}
 
 export type Address = {
   id: string
   user_id: string
   name: string
-  company?: string | null
-  street1: string
-  street2?: string | null
+  company_name: string | null
+  address_line1: string
+  address_line2: string | null
   city: string
   state: string
   postal_code: string
   country: string
-  phone?: string | null
-  email?: string | null
-  is_default?: boolean | null
+  is_default: boolean
+  created_at: string
+  is_residential: boolean
+  address_type: string
+  email: string | null
+  phone: string | null
+  recipient_name: string | null
 }
 
-/* ------------------------------ MOCK DATA ------------------------------ */
+export async function getAllAddresses(userId: string) {
+  const supabase = getSupabaseServerActionClient()
+  const { data, error } = await supabase
+    .from("addresses")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("is_deleted", false)
+    .order("created_at", { ascending: false })
 
-const mockAddresses: Address[] = [
-  {
-    id: "addr_1",
-    user_id: "demo",
-    name: "John Doe",
-    company: "Acme Corp",
-    street1: "123 Main St",
-    street2: "Suite 100",
-    city: "New York",
-    state: "NY",
-    postal_code: "10001",
-    country: "US",
-    phone: "555-123-4567",
-    email: "john@acme.com",
-    is_default: true,
-  },
-]
+  if (error) {
+    console.error("Error fetching addresses:", error)
+    return { addresses: [], error: error.message }
+  }
 
-/* ------------------------------ API-LIKE HELPERS ------------------------------ */
-
-export async function getAllAddresses(_userId: string) {
-  return { success: true, addresses: mockAddresses }
+  return { addresses: data || [], error: null }
 }
 
-export async function addAddress(address: Omit<Address, "id">) {
-  const newAddr: Address = { ...address, id: `addr_${Date.now()}` }
-  mockAddresses.push(newAddr)
-  return { success: true, address: newAddr }
+export async function addAddress(address: Omit<Address, "id" | "created_at">) {
+  const supabase = getSupabaseServerActionClient()
+  const { data, error } = await supabase.from("addresses").insert(address).select().single()
+
+  if (error) {
+    console.error("Error adding address:", error)
+    return { success: false, error: error.message }
+  }
+
+  return { success: true, address: data }
 }
 
 export async function updateAddress(id: string, updates: Partial<Address>) {
-  const idx = mockAddresses.findIndex((a) => a.id === id)
-  if (idx === -1) return { success: false, error: "Address not found" }
-  mockAddresses[idx] = { ...mockAddresses[idx], ...updates }
-  return { success: true, address: mockAddresses[idx] }
+  const supabase = getSupabaseServerActionClient()
+  const { data, error } = await supabase.from("addresses").update(updates).eq("id", id).select().single()
+
+  if (error) {
+    console.error("Error updating address:", error)
+    return { success: false, error: error.message }
+  }
+
+  return { success: true, address: data }
 }
 
 export async function deleteAddress(id: string) {
-  const idx = mockAddresses.findIndex((a) => a.id === id)
-  if (idx === -1) return { success: false, error: "Address not found" }
-  mockAddresses.splice(idx, 1)
+  const supabase = getSupabaseServerActionClient()
+  const { error } = await supabase.from("addresses").update({ is_deleted: true }).eq("id", id)
+
+  if (error) {
+    console.error("Error deleting address:", error)
+    return { success: false, error: error.message }
+  }
+
   return { success: true }
 }

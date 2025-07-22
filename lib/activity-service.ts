@@ -1,69 +1,81 @@
-import { createClient } from "@supabase/supabase-js"
-import type { Database } from "@/types/supabase"
+"use server"
 
-/**
- * Singleton Supabase service-role client (server-only).
- * We use the service role key so the dashboard can list logs that
- * belong to any user (e.g. for admin views).  NEVER expose this key
- * to the browser; this module is only imported in Server Components
- * or server actions/route-handlers.
- */
-const supabaseAdmin =
-  /* ensure a single instance in dev hot-reload */ (
-    globalThis as unknown as { __supabaseAdmin?: ReturnType<typeof createClient> }
-  ).__supabaseAdmin ??
-  createClient<Database>(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+import { createServerClient } from "@supabase/ssr"
+import { cookies } from "next/headers"
 
-if (!(globalThis as any).__supabaseAdmin) {
-  ;(globalThis as any).__supabaseAdmin = supabaseAdmin
+function getSupabaseServerActionClient() {
+  const cookieStore = cookies()
+  return createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
+    cookies: {
+      get: (name: string) => cookieStore.get(name)?.value,
+      set: (name: string, value: string, options: any) => cookieStore.set(name, value, options),
+      remove: (name: string, options: any) => cookieStore.set(name, "", options),
+    },
+  })
 }
 
-/* ------------------------------------------------------------------ */
-/* Types                                                               */
-/* ------------------------------------------------------------------ */
-
-export type ActivityLog = Database["public"]["Tables"]["activity_logs"]["Row"]
-
-/* ------------------------------------------------------------------ */
-/* Public API                                                          */
-/* ------------------------------------------------------------------ */
-
-/**
- * Fetch **all** activity logs (admin view).
- * @param limit  Maximum number of rows to return (default 100)
- */
-export async function getAllActivityLogs(limit = 100): Promise<ActivityLog[]> {
-  const { data, error } = await supabaseAdmin
-    .from("activity_logs")
-    .select("*")
-    .order("created_at", { ascending: false })
-    .limit(limit)
-
-  if (error) {
-    console.error("[activity-service] getAllActivityLogs ➜", error.message)
-    return []
-  }
-
-  return data ?? []
+export type ActivityLogType = {
+  id: string
+  user_id: string
+  action: string
+  target_table: string | null
+  target_id: string | null
+  meta: Record<string, any> | null
+  ip_address: string | null
+  user_agent: string | null
+  created_at: string
 }
 
-/**
- * Fetch recent activity logs for a single user.
- * @param userId Supabase auth.user().id
- * @param limit  Maximum number of rows to return (default 50)
- */
-export async function getUserActivityLogs(userId: string, limit = 50): Promise<ActivityLog[]> {
-  const { data, error } = await supabaseAdmin
+export async function getAllActivityLogs(userId: string, page = 1, pageSize = 10, filters: any = {}) {
+  const supabase = getSupabaseServerActionClient()
+  const offset = (page - 1) * pageSize
+
+  let query = supabase
     .from("activity_logs")
-    .select("*")
+    .select("*", { count: "exact" })
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
-    .limit(limit)
+    .range(offset, offset + pageSize - 1)
 
-  if (error) {
-    console.error("[activity-service] getUserActivityLogs ➜", error.message)
-    return []
+  if (filters.action && filters.action !== "all") {
+    query = query.eq("action", filters.action)
   }
 
-  return data ?? []
+  if (filters.target_table && filters.target_table !== "all") {
+    query = query.eq("target_table", filters.target_table)
+  }
+
+  if (filters.startDate) {
+    query = query.gte("created_at", filters.startDate)
+  }
+
+  if (filters.endDate) {
+    query = query.lte("created_at", filters.endDate)
+  }
+
+  if (filters.search) {
+    query = query.or(`action.ilike.%${filters.search}%,ip_address.ilike.%${filters.search}%`)
+  }
+
+  const { data, error, count } = await query
+
+  if (error) {
+    console.error("Error fetching activity logs:", error)
+    return { data: [], count: 0 }
+  }
+
+  return { data: data || [], count: count || 0 }
+}
+
+export async function getUserActivityLogs(page = 1, pageSize = 10, filters: any = {}) {
+  const supabase = getSupabaseServerActionClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { data: [], count: 0 }
+  }
+
+  return getAllActivityLogs(user.id, page, pageSize, filters)
 }

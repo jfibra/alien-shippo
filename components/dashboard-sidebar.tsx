@@ -52,7 +52,7 @@ export function DashboardSidebar({ open, setOpen, className }: DashboardSidebarP
         {/* Header */}
         <div className="flex h-16 shrink-0 items-center justify-between px-6 border-b border-gray-200">
           <Link href="/dashboard" className="flex items-center space-x-2">
-            <Image src="/viking-freight-logo.png" alt="Viking Freight" width={32} height={32} className="h-8 w-auto" />
+            <Image src="/alien-shipper-logo.png" alt="Alien Shipper" width={32} height={32} className="h-8 w-auto" />
           </Link>
 
           {/* Close button for mobile */}
