@@ -32,8 +32,13 @@ interface UserNavProps {
 export function UserNav({ user }: UserNavProps) {
   const [isPending, startTransition] = useTransition()
 
-  const initials = user.full_name
+  // ─────────────────────────────────────────────────────────────
+  // Ensure we always have a safe string to work with.
+  const fullName = user.full_name ?? user.email ?? "User"
+
+  const initials = fullName
     .split(" ")
+    .filter(Boolean)
     .map((name) => name[0])
     .join("")
     .toUpperCase()
@@ -53,7 +58,7 @@ export function UserNav({ user }: UserNavProps) {
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-8 w-8 rounded-full">
           <Avatar className="h-8 w-8">
-            <AvatarImage src={user.profile_image_url || ""} alt={user.full_name} />
+            <AvatarImage src={user.profile_image_url || ""} alt={fullName} />
             <AvatarFallback className="bg-blue-600 text-white">{initials}</AvatarFallback>
           </Avatar>
         </Button>
@@ -61,7 +66,7 @@ export function UserNav({ user }: UserNavProps) {
       <DropdownMenuContent className="w-56" align="end" forceMount>
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">{user.full_name}</p>
+            <p className="text-sm font-medium leading-none">{fullName}</p>
             <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
           </div>
         </DropdownMenuLabel>

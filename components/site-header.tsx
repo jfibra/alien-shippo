@@ -6,6 +6,9 @@ import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Menu } from "lucide-react"
+import { UserNav } from "@/components/user-nav"
+import { createClient } from "@/lib/supabase-browser"
+import { useEffect, useState } from "react"
 
 const navigation = [
   { name: "Home", href: "/" },
@@ -14,8 +17,76 @@ const navigation = [
   { name: "Contact", href: "/contact" },
 ]
 
+interface User {
+  id: string
+  email: string
+  first_name: string | null
+  middle_name: string | null
+  last_name: string | null
+  full_name: string
+  role: string
+  profile_image_url: string | null
+}
+
 export function SiteHeader() {
   const [isOpen, setIsOpen] = React.useState(false)
+  const [user, setUser] = useState<User | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const supabase = createClient()
+
+    const getUser = async () => {
+      try {
+        const {
+          data: { user: authUser },
+        } = await supabase.auth.getUser()
+
+        if (authUser) {
+          // Fetch user profile from users table
+          const { data: userProfile } = await supabase
+            .from("users")
+            .select("*")
+            .eq("id", authUser.id)
+            .eq("is_deleted", false)
+            .single()
+
+          if (userProfile) {
+            setUser(userProfile)
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching user:", error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    getUser()
+
+    // Listen for auth changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === "SIGNED_IN" && session?.user) {
+        const { data: userProfile } = await supabase
+          .from("users")
+          .select("*")
+          .eq("id", session.user.id)
+          .eq("is_deleted", false)
+          .single()
+
+        if (userProfile) {
+          setUser(userProfile)
+        }
+      } else if (event === "SIGNED_OUT") {
+        setUser(null)
+      }
+      setLoading(false)
+    })
+
+    return () => subscription.unsubscribe()
+  }, [])
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -94,12 +165,26 @@ export function SiteHeader() {
             </Link>
           </div>
           <nav className="flex items-center space-x-2">
-            <Button asChild variant="ghost" size="sm">
-              <Link href="/login">Sign In</Link>
-            </Button>
-            <Button asChild size="sm" variant="gold">
-              <Link href="/signup">Get Started</Link>
-            </Button>
+            {loading ? (
+              <div className="flex items-center space-x-2">
+                <div className="h-8 w-16 bg-gray-200 animate-pulse rounded"></div>
+                <div className="h-8 w-20 bg-gray-200 animate-pulse rounded"></div>
+              </div>
+            ) : user ? (
+              <div className="flex items-center space-x-3">
+                <span className="text-sm font-medium hidden sm:inline-block">{user.full_name}</span>
+                <UserNav user={user} />
+              </div>
+            ) : (
+              <>
+                <Button asChild variant="ghost" size="sm">
+                  <Link href="/login">Sign In</Link>
+                </Button>
+                <Button asChild size="sm" variant="gold">
+                  <Link href="/signup">Get Started</Link>
+                </Button>
+              </>
+            )}
           </nav>
         </div>
       </div>
