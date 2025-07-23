@@ -8,10 +8,7 @@ import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { TransactionHistory } from "@/components/transaction-history"
 import { AccountBalance } from "@/components/account-balance"
-import { Package, TrendingUp, Activity, CreditCard, MapPin, Plus, Rocket } from "lucide-react"
-import { getAccountBalance } from "@/lib/balance-service"
-import { getTransactions } from "@/lib/transaction-service"
-import { getShipments } from "@/lib/shipment-service"
+import { Package, TrendingUp, Activity, CreditCard, MapPin, Plus, Rocket, Bell } from "lucide-react"
 
 function getSupabaseServerClient() {
   const cookieStore = cookies()
@@ -34,53 +31,94 @@ export default async function DashboardPage() {
     redirect("/login")
   }
 
-  // Fetch real data from Supabase
-  const [balanceData, { transactions }, { shipments }] = await Promise.all([
-    getAccountBalance(user.id),
-    getTransactions(user.id, 1, 5),
-    getShipments(user.id, 1, 5),
-  ])
+  // Fetch real data from database
+  const [{ data: userAccount }, { data: recentShipments }, { data: recentTransactions }, { data: notifications }] =
+    await Promise.all([
+      supabase.from("user_accounts").select("*").eq("user_id", user.id).single(),
+      supabase
+        .from("shipments")
+        .select(`
+        *,
+        from_address:addresses!shipments_from_address_id_fkey(name, city, state),
+        to_address:addresses!shipments_to_address_id_fkey(name, city, state)
+      `)
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(5),
+      supabase
+        .from("transactions")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(5),
+      supabase
+        .from("notifications")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("is_read", false)
+        .order("created_at", { ascending: false })
+        .limit(5),
+    ])
 
   // Calculate metrics from real data
+  const totalShipments = recentShipments?.length || 0
+  const deliveredShipments = recentShipments?.filter((s) => s.status === "delivered").length || 0
+  const inTransitShipments = recentShipments?.filter((s) => s.status === "in_transit").length || 0
+  const createdShipments = recentShipments?.filter((s) => s.status === "created").length || 0
+
   const metrics = {
-    total_shipments: shipments.length,
-    delivered_shipments: shipments.filter((s) => s.status === "delivered").length,
-    in_transit_shipments: shipments.filter((s) => s.status === "in_transit").length,
-    created_shipments: shipments.filter((s) => s.status === "created").length,
+    total_shipments: totalShipments,
+    delivered_shipments: deliveredShipments,
+    in_transit_shipments: inTransitShipments,
+    created_shipments: createdShipments,
   }
 
   return (
-    <div className="space-y-8">
-      {/* Welcome Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg p-6 text-white">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold mb-2">Welcome back! 🚀</h1>
-            <p className="text-blue-100">Your shipping command center is ready for action.</p>
+    <div className="space-y-6 p-4 md:p-6">
+      {/* Welcome Header - Responsive */}
+      <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg p-4 md:p-6 text-white">
+        <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
+          <div className="space-y-2">
+            <h1 className="text-xl md:text-2xl lg:text-3xl font-bold">Welcome back! 🚀</h1>
+            <p className="text-blue-100 text-sm md:text-base">Your shipping command center is ready for action.</p>
           </div>
-          <div className="mt-4 md:mt-0">
-            <Button asChild size="lg" className="bg-white text-blue-600 hover:bg-gray-100">
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Button asChild size="sm" className="bg-white text-blue-600 hover:bg-gray-100">
               <Link href="/dashboard/ship" className="flex items-center space-x-2">
-                <Rocket className="h-5 w-5" />
+                <Rocket className="h-4 w-4" />
                 <span>Create Shipment</span>
               </Link>
             </Button>
+            {notifications && notifications.length > 0 && (
+              <Button
+                asChild
+                variant="outline"
+                size="sm"
+                className="border-white text-white hover:bg-white/10 bg-transparent"
+              >
+                <Link href="/dashboard/notifications" className="flex items-center space-x-2">
+                  <Bell className="h-4 w-4" />
+                  <span className="hidden sm:inline">Notifications</span>
+                  <span className="bg-red-500 text-white rounded-full px-2 py-1 text-xs">{notifications.length}</span>
+                </Link>
+              </Button>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Metrics Cards */}
+      {/* Metrics Cards - Responsive Grid */}
       <DashboardMetrics metrics={metrics} />
 
-      {/* Main Content Grid */}
+      {/* Main Content Grid - Responsive */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Recent Shipments - Takes up 2 columns */}
-        <div className="lg:col-span-2">
+        {/* Recent Shipments - Takes up 2 columns on large screens */}
+        <div className="lg:col-span-2 space-y-6">
           <Card className="h-full">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-              <div>
-                <CardTitle className="text-xl">Recent Shipments</CardTitle>
-                <CardDescription>Your latest deliveries</CardDescription>
+            <CardHeader className="flex flex-col space-y-2 sm:flex-row sm:items-center sm:justify-between sm:space-y-0 pb-4">
+              <div className="space-y-1">
+                <CardTitle className="text-lg md:text-xl">Recent Shipments</CardTitle>
+                <CardDescription className="text-sm">Your latest deliveries</CardDescription>
               </div>
               <Button asChild variant="outline" size="sm">
                 <Link href="/dashboard/shipments" className="flex items-center space-x-1">
@@ -90,71 +128,117 @@ export default async function DashboardPage() {
               </Button>
             </CardHeader>
             <CardContent>
-              <RecentShipments shipments={shipments} />
+              <RecentShipments shipments={recentShipments || []} />
+            </CardContent>
+          </Card>
+
+          {/* Recent Transactions - Mobile: Full width, Desktop: 2 columns */}
+          <Card className="lg:hidden">
+            <CardHeader className="flex flex-col space-y-2 sm:flex-row sm:items-center sm:justify-between sm:space-y-0 pb-4">
+              <div className="space-y-1">
+                <CardTitle className="text-lg">Recent Transactions</CardTitle>
+                <CardDescription className="text-sm">Your latest account activity</CardDescription>
+              </div>
+              <Button asChild variant="outline" size="sm">
+                <Link href="/dashboard/billing" className="flex items-center space-x-1">
+                  <TrendingUp className="h-4 w-4" />
+                  <span>View All</span>
+                </Link>
+              </Button>
+            </CardHeader>
+            <CardContent>
+              <TransactionHistory transactions={recentTransactions || []} userId={user.id} />
             </CardContent>
           </Card>
         </div>
 
-        {/* Sidebar Content */}
+        {/* Sidebar Content - Responsive */}
         <div className="space-y-6">
           {/* Account Balance */}
           <Card>
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center space-x-2">
-                <CreditCard className="h-5 w-5" />
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base md:text-lg flex items-center space-x-2">
+                <CreditCard className="h-4 w-4 md:h-5 md:w-5" />
                 <span>Account Balance</span>
               </CardTitle>
-              <CardDescription>Your current shipping credits</CardDescription>
+              <CardDescription className="text-sm">Your current shipping credits</CardDescription>
             </CardHeader>
             <CardContent>
               <AccountBalance
-                balance={balanceData?.balance ?? 0}
-                currency={balanceData?.currency ?? "USD"}
-                lastDeposit={balanceData?.last_deposit_date}
+                balance={userAccount?.balance || 0}
+                currency={userAccount?.currency || "USD"}
+                lastDeposit={userAccount?.last_deposit_date}
               />
             </CardContent>
           </Card>
 
-          {/* Quick Actions */}
+          {/* Quick Actions - Responsive Grid */}
           <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Quick Actions</CardTitle>
-              <CardDescription>Common tasks and shortcuts</CardDescription>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base md:text-lg">Quick Actions</CardTitle>
+              <CardDescription className="text-sm">Common tasks and shortcuts</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <Button asChild className="w-full justify-start bg-transparent" variant="outline">
-                <Link href="/dashboard/ship">
-                  <Package className="mr-2 h-4 w-4" />
-                  Create New Shipment
-                </Link>
-              </Button>
-              <Button asChild className="w-full justify-start bg-transparent" variant="outline">
-                <Link href="/dashboard/billing/add-funds">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add Funds
-                </Link>
-              </Button>
-              <Button asChild className="w-full justify-start bg-transparent" variant="outline">
-                <Link href="/dashboard/addresses">
-                  <MapPin className="mr-2 h-4 w-4" />
-                  Manage Addresses
-                </Link>
-              </Button>
-              <Button asChild className="w-full justify-start bg-transparent" variant="outline">
-                <Link href="/dashboard/activity">
-                  <Activity className="mr-2 h-4 w-4" />
-                  View Activity
-                </Link>
-              </Button>
+            <CardContent className="space-y-2">
+              <div className="grid grid-cols-1 gap-2">
+                <Button asChild className="w-full justify-start bg-transparent" variant="outline" size="sm">
+                  <Link href="/dashboard/ship">
+                    <Package className="mr-2 h-4 w-4" />
+                    Create New Shipment
+                  </Link>
+                </Button>
+                <Button asChild className="w-full justify-start bg-transparent" variant="outline" size="sm">
+                  <Link href="/dashboard/billing/add-funds">
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Funds
+                  </Link>
+                </Button>
+                <Button asChild className="w-full justify-start bg-transparent" variant="outline" size="sm">
+                  <Link href="/dashboard/addresses">
+                    <MapPin className="mr-2 h-4 w-4" />
+                    Manage Addresses
+                  </Link>
+                </Button>
+                <Button asChild className="w-full justify-start bg-transparent" variant="outline" size="sm">
+                  <Link href="/dashboard/activity">
+                    <Activity className="mr-2 h-4 w-4" />
+                    View Activity
+                  </Link>
+                </Button>
+              </div>
             </CardContent>
           </Card>
+
+          {/* Notifications - Mobile/Tablet only */}
+          {notifications && notifications.length > 0 && (
+            <Card className="lg:hidden">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center space-x-2">
+                  <Bell className="h-4 w-4" />
+                  <span>Recent Notifications</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {notifications.slice(0, 3).map((notification) => (
+                    <div key={notification.id} className="p-2 bg-gray-50 rounded-lg">
+                      <p className="text-sm font-medium">{notification.title}</p>
+                      <p className="text-xs text-gray-600 truncate">{notification.message}</p>
+                    </div>
+                  ))}
+                  <Button asChild variant="outline" size="sm" className="w-full bg-transparent">
+                    <Link href="/dashboard/notifications">View All Notifications</Link>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
 
-      {/* Recent Transactions */}
-      <Card>
+      {/* Recent Transactions - Desktop only */}
+      <Card className="hidden lg:block">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-          <div>
+          <div className="space-y-1">
             <CardTitle className="text-xl">Recent Transactions</CardTitle>
             <CardDescription>Your latest account activity</CardDescription>
           </div>
@@ -166,7 +250,7 @@ export default async function DashboardPage() {
           </Button>
         </CardHeader>
         <CardContent>
-          <TransactionHistory transactions={transactions} />
+          <TransactionHistory transactions={recentTransactions || []} userId={user.id} />
         </CardContent>
       </Card>
     </div>
