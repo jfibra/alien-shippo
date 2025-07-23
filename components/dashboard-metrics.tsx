@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Package, Truck, CheckCircle, Clock } from "lucide-react"
+import { CheckCircle, Rocket, Zap, Globe } from "lucide-react"
 
 interface DashboardMetricsProps {
   metrics: {
@@ -11,55 +11,48 @@ interface DashboardMetricsProps {
 }
 
 export function DashboardMetrics({ metrics }: DashboardMetricsProps) {
-  const cards = [
+  const metricsData = [
     {
-      title: "Total Shipments",
+      title: "Total Missions",
       value: metrics.total_shipments,
-      icon: Package,
+      icon: Rocket,
+      description: "Galactic deliveries launched",
       color: "text-blue-600",
-      bgColor: "bg-blue-50",
     },
     {
-      title: "Delivered",
+      title: "Successfully Delivered",
       value: metrics.delivered_shipments,
       icon: CheckCircle,
+      description: "Packages reached their destination",
       color: "text-green-600",
-      bgColor: "bg-green-50",
     },
     {
-      title: "In Transit",
+      title: "In Hyperspace",
       value: metrics.in_transit_shipments,
-      icon: Truck,
-      color: "text-orange-600",
-      bgColor: "bg-orange-50",
+      icon: Zap,
+      description: "Currently traveling through space",
+      color: "text-yellow-600",
     },
     {
-      title: "Pending",
+      title: "Awaiting Launch",
       value: metrics.created_shipments,
-      icon: Clock,
-      color: "text-gray-600",
-      bgColor: "bg-gray-50",
+      icon: Globe,
+      description: "Ready for intergalactic transport",
+      color: "text-purple-600",
     },
   ]
 
   return (
-    <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-4">
-      {cards.map((card) => (
-        <Card key={card.title} className="hover:shadow-md transition-shadow">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      {metricsData.map((metric) => (
+        <Card key={metric.title}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs md:text-sm font-medium text-gray-600 truncate">{card.title}</CardTitle>
-            <div className={`p-1.5 md:p-2 rounded-full ${card.bgColor}`}>
-              <card.icon className={`h-3 w-3 md:h-4 md:w-4 ${card.color}`} />
-            </div>
+            <CardTitle className="text-sm font-medium">{metric.title}</CardTitle>
+            <metric.icon className={`h-4 w-4 ${metric.color}`} />
           </CardHeader>
           <CardContent>
-            <div className={`text-xl md:text-2xl lg:text-3xl font-bold ${card.color}`}>{card.value}</div>
-            <p className="text-xs text-gray-500 mt-1">
-              {card.title === "Total Shipments" && "All time"}
-              {card.title === "Delivered" && "Completed"}
-              {card.title === "In Transit" && "Active"}
-              {card.title === "Pending" && "Awaiting"}
-            </p>
+            <div className="text-2xl font-bold">{metric.value}</div>
+            <p className="text-xs text-muted-foreground">{metric.description}</p>
           </CardContent>
         </Card>
       ))}

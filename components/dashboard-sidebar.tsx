@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { Home, Package, CreditCard, MapPin, Activity, HelpCircle, Rocket, LogOut, X } from "lucide-react"
+import { Home, Package, CreditCard, MapPin, Activity, HelpCircle, X, Rocket, LogOut } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
@@ -42,34 +42,17 @@ export function DashboardSidebar({ open, setOpen, className }: DashboardSidebarP
       {/* Sidebar */}
       <div
         className={cn(
-          "fixed inset-y-0 z-50 flex w-64 flex-col border-r border-gray-200 bg-white",
-          "transition-transform duration-300 ease-in-out",
-          open ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
+          "fixed inset-y-0 z-50 flex w-64 flex-col bg-white border-r border-gray-200",
           "lg:static lg:z-auto",
+          open ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
+          "transition-transform duration-300 ease-in-out",
           className,
         )}
       >
         {/* Header */}
-        <div className="flex h-16 shrink-0 items-center justify-between border-b border-gray-200 px-6">
+        <div className="flex h-16 shrink-0 items-center justify-between px-6 border-b border-gray-200">
           <Link href="/dashboard" className="flex items-center space-x-2">
-            {/* Primary logo for expanded sidebar */}
-            <Image
-              src="/alien-shipper-logo.png"
-              alt="Alien Shipper"
-              width={120}
-              height={32}
-              className="hidden h-8 w-auto lg:block"
-              priority
-            />
-            {/* Small logo for collapsed / mobile */}
-            <Image
-              src="/alien-shipper-logo.png"
-              alt="Alien Shipper"
-              width={32}
-              height={32}
-              className="h-8 w-8 lg:hidden"
-              priority
-            />
+            <Image src="/alien-shipper-logo.png" alt="Alien Shipper" width={32} height={32} className="h-8 w-auto" />
           </Link>
 
           {/* Close button for mobile */}
@@ -87,11 +70,11 @@ export function DashboardSidebar({ open, setOpen, className }: DashboardSidebarP
                 <li key={item.name}>
                   <Link
                     href={item.href}
-                    onClick={() => setOpen(false)}
                     className={cn(
                       "group flex items-center rounded-md px-3 py-2 text-sm font-medium transition-colors",
                       isActive ? "bg-blue-50 text-blue-700" : "text-gray-700 hover:bg-gray-50 hover:text-gray-900",
                     )}
+                    onClick={() => setOpen(false)}
                   >
                     <item.icon
                       className={cn(
@@ -106,8 +89,8 @@ export function DashboardSidebar({ open, setOpen, className }: DashboardSidebarP
             })}
           </ul>
 
-          {/* Bottom actions */}
-          <div className="mt-auto space-y-2 border-t border-gray-200 pt-4">
+          {/* Bottom section */}
+          <div className="mt-auto pt-4 space-y-2 border-t border-gray-200">
             <Button asChild className="w-full bg-blue-600 hover:bg-blue-700">
               <Link href="/dashboard/ship" className="flex items-center space-x-2">
                 <Rocket className="h-4 w-4" />
@@ -117,10 +100,10 @@ export function DashboardSidebar({ open, setOpen, className }: DashboardSidebarP
 
             <Button
               variant="outline"
-              className="w-full border-red-200 bg-transparent text-red-600 hover:bg-red-50 hover:text-red-700"
+              className="w-full text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700 bg-transparent"
               onClick={handleSignOut}
             >
-              <LogOut className="mr-2 h-4 w-4" />
+              <LogOut className="h-4 w-4 mr-2" />
               Sign Out
             </Button>
           </div>
