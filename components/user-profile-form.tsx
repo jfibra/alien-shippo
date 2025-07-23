@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Switch } from "@/components/ui/switch"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { useToast } from "@/components/ui/use-toast"
@@ -265,7 +264,7 @@ export function UserProfileForm({ initialData }: UserProfileFormProps) {
       <Card>
         <CardHeader>
           <CardTitle>Email Settings</CardTitle>
-          <CardDescription>Manage your email address and notification preferences.</CardDescription>
+          <CardDescription>Manage your email address.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <form onSubmit={handleEmailUpdate} className="space-y-4">
@@ -302,38 +301,6 @@ export function UserProfileForm({ initialData }: UserProfileFormProps) {
               )}
             </div>
           </form>
-
-          <Separator />
-
-          <div className="space-y-4">
-            <h4 className="font-medium">Notification Preferences</h4>
-
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label htmlFor="email_notifications">Email Notifications</Label>
-                <p className="text-sm text-gray-500">Receive notifications via email</p>
-              </div>
-              <Switch
-                id="email_notifications"
-                checked={formData.email_notifications}
-                onCheckedChange={(checked) => handleInputChange("email_notifications", checked)}
-                disabled={isPending}
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label htmlFor="app_notifications">App Notifications</Label>
-                <p className="text-sm text-gray-500">Receive in-app notifications</p>
-              </div>
-              <Switch
-                id="app_notifications"
-                checked={formData.app_notifications}
-                onCheckedChange={(checked) => handleInputChange("app_notifications", checked)}
-                disabled={isPending}
-              />
-            </div>
-          </div>
         </CardContent>
       </Card>
 
@@ -345,10 +312,6 @@ export function UserProfileForm({ initialData }: UserProfileFormProps) {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label className="text-sm font-medium text-gray-500">User ID</Label>
-              <p className="text-sm font-mono bg-gray-50 p-2 rounded">{initialData.id}</p>
-            </div>
             <div>
               <Label className="text-sm font-medium text-gray-500">Account Type</Label>
               <p className="text-sm capitalize">{initialData.role}</p>

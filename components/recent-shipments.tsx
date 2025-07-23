@@ -1,87 +1,125 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Button } from "@/components/ui/button"
-import Link from "next/link"
-import { ArrowRight, Package } from "lucide-react"
-import type { Shipment } from "@/lib/types"
-import { format } from "date-fns"
+"use client"
+
+import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Package, MapPin, Calendar, ExternalLink } from "lucide-react"
+import Link from "next/link"
+
+interface Shipment {
+  id: string
+  tracking_number?: string
+  status: string
+  carrier?: string
+  service?: string
+  cost?: number
+  created_at: string
+  from_address?: {
+    name: string
+    city: string
+    state: string
+  }
+  to_address?: {
+    name: string
+    city: string
+    state: string
+  }
+}
 
 interface RecentShipmentsProps {
   shipments: Shipment[]
 }
 
 export function RecentShipments({ shipments }: RecentShipmentsProps) {
-  return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-2xl font-bold">Recent Shipments</CardTitle>
-        <Button asChild variant="outline" size="sm">
-          <Link href="/dashboard/shipments">
-            View All <ArrowRight className="ml-2 h-4 w-4" />
-          </Link>
+  const getStatusColor = (status: string) => {
+    switch (status.toLowerCase()) {
+      case "delivered":
+        return "bg-green-100 text-green-800"
+      case "in_transit":
+        return "bg-blue-100 text-blue-800"
+      case "created":
+        return "bg-gray-100 text-gray-800"
+      case "exception":
+        return "bg-red-100 text-red-800"
+      default:
+        return "bg-gray-100 text-gray-800"
+    }
+  }
+
+  if (shipments.length === 0) {
+    return (
+      <div className="text-center py-8">
+        <Package className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+        <h3 className="text-lg font-medium text-gray-900 mb-2">No shipments yet</h3>
+        <p className="text-gray-500 mb-4">Create your first shipment to get started.</p>
+        <Button asChild>
+          <Link href="/dashboard/ship">Create Shipment</Link>
         </Button>
-      </CardHeader>
-      <CardContent>
-        <CardDescription className="mb-4">Your latest shipping activities at a glance.</CardDescription>
-        {shipments.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-8 text-gray-500">
-            <Package className="h-12 w-12 mb-4" />
-            <p className="text-lg font-medium">No recent shipments found.</p>
-            <p className="text-sm">Start by creating your first shipment!</p>
-            <Button asChild className="mt-4">
-              <Link href="/dashboard/ship">Ship Now</Link>
-            </Button>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Tracking #</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Carrier</TableHead>
-                  <TableHead>Destination</TableHead>
-                  <TableHead className="text-right">Cost</TableHead>
-                  <TableHead className="text-right">Date</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {shipments.map((shipment) => (
-                  <TableRow key={shipment.id}>
-                    <TableCell className="font-medium">
-                      <Link href={`/dashboard/shipments/${shipment.id}`} className="hover:underline">
-                        {shipment.tracking_number || shipment.id.substring(0, 8)}
-                      </Link>
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={
-                          shipment.status === "delivered"
-                            ? "success"
-                            : shipment.status === "in_transit"
-                              ? "secondary"
-                              : "default"
-                        }
-                      >
-                        {shipment.status.replace(/_/g, " ")}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{shipment.carrier}</TableCell>
-                    <TableCell>
-                      {shipment.to_address.city}, {shipment.to_address.state}
-                    </TableCell>
-                    <TableCell className="text-right">${shipment.cost ? shipment.cost.toFixed(2) : "0.00"}</TableCell>
-                    <TableCell className="text-right">
-                      {format(new Date(shipment.created_at), "MMM dd, yyyy")}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      {shipments.map((shipment) => (
+        <Card key={shipment.id} className="hover:shadow-md transition-shadow">
+          <CardContent className="p-4">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-3 lg:space-y-0">
+              {/* Left side - Shipment info */}
+              <div className="flex-1 space-y-2">
+                <div className="flex items-center space-x-3">
+                  <Package className="h-5 w-5 text-gray-400" />
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-3">
+                    <span className="font-medium">
+                      {shipment.tracking_number || `Shipment ${shipment.id.slice(0, 8)}`}
+                    </span>
+                    <Badge className={getStatusColor(shipment.status)} variant="secondary">
+                      {shipment.status.replace("_", " ").toUpperCase()}
+                    </Badge>
+                  </div>
+                </div>
+
+                {/* Route info */}
+                <div className="flex items-center space-x-2 text-sm text-gray-600">
+                  <MapPin className="h-4 w-4" />
+                  <span className="truncate">
+                    {shipment.from_address?.city}, {shipment.from_address?.state} → {shipment.to_address?.city},{" "}
+                    {shipment.to_address?.state}
+                  </span>
+                </div>
+
+                {/* Service and date */}
+                <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 text-sm text-gray-500">
+                  {shipment.carrier && (
+                    <span>
+                      {shipment.carrier} {shipment.service}
+                    </span>
+                  )}
+                  <div className="flex items-center space-x-1">
+                    <Calendar className="h-4 w-4" />
+                    <span>{new Date(shipment.created_at).toLocaleDateString()}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right side - Cost and actions */}
+              <div className="flex items-center justify-between lg:justify-end lg:space-x-4">
+                {shipment.cost && (
+                  <div className="text-right">
+                    <div className="font-semibold">${shipment.cost.toFixed(2)}</div>
+                  </div>
+                )}
+                <Button asChild variant="outline" size="sm">
+                  <Link href={`/dashboard/shipments/${shipment.id}`}>
+                    <ExternalLink className="h-4 w-4" />
+                    <span className="hidden sm:inline ml-1">View</span>
+                  </Link>
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
   )
 }

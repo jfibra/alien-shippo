@@ -32,10 +32,12 @@ export default async function AddressesPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Address Book</h1>
-        <p className="text-muted-foreground">Manage your shipping and return addresses for faster checkout.</p>
+    <div className="w-full space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Address Book</h1>
+          <p className="text-muted-foreground">Manage your shipping and return addresses for faster checkout.</p>
+        </div>
       </div>
       <AddressBookPageClient initialAddresses={addresses || []} />
     </div>
